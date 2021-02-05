@@ -25,13 +25,13 @@
 
 package jodd.madvoc.component;
 
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
-import jodd.madvoc.ActionConfig;
-import jodd.madvoc.ResultPath;
-import jodd.petite.meta.PetiteInject;
 import jodd.madvoc.MadvocUtil;
+import jodd.madvoc.config.ActionRuntime;
+import jodd.madvoc.config.ResultPath;
+import jodd.petite.meta.PetiteInject;
 import jodd.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Mapper from action results paths to result path. Certain set of results
@@ -43,25 +43,22 @@ import jodd.util.StringUtil;
  *     <li># - strips words from path (goes 'back')</li>
  * </ul>
  */
-public class ResultMapper {
+public class ResultMapper extends ResultMapperCfg {
 
 	private static final Logger log = LoggerFactory.getLogger(ResultMapper.class);
 
 	@PetiteInject
 	protected ActionsManager actionsManager;
 
-	@PetiteInject
-	protected MadvocConfig madvocConfig;
-
 	/**
 	 * Lookups value as an alias and, if not found, as a default alias.
 	 */
-	protected String lookupAlias(String alias) {
+	protected String lookupAlias(final String alias) {
 		String value = actionsManager.lookupPathAlias(alias);
 		if (value == null) {
-			ActionConfig cfg = actionsManager.lookup(alias);
+			final ActionRuntime cfg = actionsManager.lookup(alias);
 			if (cfg != null) {
-				value = cfg.actionPath;
+				value = cfg.getActionPath();
 			}
 		}
 		return value;
@@ -70,8 +67,8 @@ public class ResultMapper {
 	/**
 	 * Returns resolved alias result value or passed on, if alias doesn't exist.
 	 */
-	protected String resolveAlias(String value) {
-		StringBuilder result = new StringBuilder(value.length());
+	protected String resolveAlias(final String value) {
+		final StringBuilder result = new StringBuilder(value.length());
 		int i = 0;
 		int len = value.length();
 		while (i < len) {
@@ -80,7 +77,7 @@ public class ResultMapper {
 				// alias markers not found
 				if (i == 0) {
 					// try whole string as an alias
-					String alias = lookupAlias(value);
+					final String alias = lookupAlias(value);
 					return (alias != null ? alias : value);
 				} else {
 					result.append(value.substring(i));
@@ -91,11 +88,11 @@ public class ResultMapper {
 			// alias marked found
 			result.append(value.substring(i, ndx));
 			ndx++;
-			int ndx2 = value.indexOf('>', ndx);
-			String aliasName = (ndx2 == -1 ? value.substring(ndx) : value.substring(ndx, ndx2));
+			final int ndx2 = value.indexOf('>', ndx);
+			final String aliasName = (ndx2 == -1 ? value.substring(ndx) : value.substring(ndx, ndx2));
 
 			// process alias
-			String alias = lookupAlias(aliasName);
+			final String alias = lookupAlias(aliasName);
 			if (alias != null) {
 				result.append(alias);
 			}
@@ -136,7 +133,7 @@ public class ResultMapper {
 			// [*] absolute paths
 			if (StringUtil.startsWithChar(value, '/')) {
 				absolutePath = true;
-				int dotNdx = value.indexOf("..");
+				final int dotNdx = value.indexOf("..");
 				if (dotNdx != -1) {
 					path = value.substring(0, dotNdx);
 					value = value.substring(dotNdx + 2);
@@ -151,7 +148,7 @@ public class ResultMapper {
 					if (value.charAt(i) != '#') {
 						break;
 					}
-					int dotNdx = MadvocUtil.lastIndexOfSlashDot(path);
+					final int dotNdx = MadvocUtil.lastIndexOfSlashDot(path);
 					if (dotNdx != -1) {
 						// dot found
 						path = path.substring(0, dotNdx);
@@ -167,7 +164,7 @@ public class ResultMapper {
 					if (StringUtil.startsWithChar(value, '.')) {
 						value = value.substring(1);
 					} else {
-						int dotNdx = value.indexOf("..");
+						final int dotNdx = value.indexOf("..");
 						if (dotNdx != -1) {
 							path += '.' + value.substring(0, dotNdx);
 							value = value.substring(dotNdx + 2);
@@ -187,7 +184,6 @@ public class ResultMapper {
 		}
 
 		if (!absolutePath) {
-			String resultPathPrefix = madvocConfig.getResultPathPrefix();
 			if (resultPathPrefix != null) {
 				path = resultPathPrefix + path;
 			}
@@ -201,9 +197,9 @@ public class ResultMapper {
 	 * and when only full string matters. Additional alias resolving
 	 * on full path is done.
 	 */
-	public String resolveResultPathString(String path, String value) {
-		ResultPath resultPath = resolveResultPath(path, value);
-		String result = resultPath.getPathValue();
+	public String resolveResultPathString(final String path, final String value) {
+		final ResultPath resultPath = resolveResultPath(path, value);
+		final String result = resultPath.pathValue();
 
 		return resolveAlias(result);
 	}

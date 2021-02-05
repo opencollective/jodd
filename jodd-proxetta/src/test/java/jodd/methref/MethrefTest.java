@@ -25,79 +25,105 @@
 
 package jodd.methref;
 
+import jodd.proxetta.Proxetta;
 import jodd.proxetta.ProxyAspect;
-import jodd.proxetta.data.Str;
+import jodd.proxetta.fixtures.data.Str;
 import jodd.proxetta.impl.ProxyProxetta;
 import jodd.proxetta.pointcuts.AllTopMethodsPointcut;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-public class MethrefTest {
+class MethrefTest {
 
 	@Test
-	public void testString() {
-		assertEquals("foo", Methref.onto(Str.class).foo());
-		assertEquals("foo2", Methref.onto(Str.class).foo2(null, null));
+	void testString() {
+		assertEquals("foo", Methref.of(Str.class).name(Str::foo));
+		assertEquals("foo2", Methref.of(Str.class).name(s -> s.foo2(null, null)));
+
+		final Str str = Methref.of(Str.class).proxy();
+		str.foo();
+		assertEquals("foo", Methref.lastName(str));
+		str.foo2(null, null);
+		assertEquals("foo2", Methref.lastName(str));
 	}
 
 	@Test
-	public void testNonString() {
-		Methref<Str> mref = Methref.on(Str.class);
-		assertEquals("redirect:boo", "redirect:" + mref.ref(mref.to().boo()));
-		assertEquals("foo", mref.ref(mref.to().foo()));
+	void testNonString() {
+		final Methref<Str> mref = Methref.of(Str.class);
+		assertEquals("redirect:boo", "redirect:" + mref.name(Str::boo));
+		mref.proxy().boo();
+		assertEquals("redirect:boo", "redirect:" + Methref.lastName(mref.proxy()));
 	}
 
 	@Test
-	public void testPrimitives() {
-		Methref<Str> mref = Methref.on(Str.class);
-		assertEquals("izoo", mref.ref(mref.to().izoo()));
-		assertEquals("fzoo", mref.ref(mref.to().fzoo()));
-		assertEquals("dzoo", mref.ref(mref.to().dzoo()));
-		assertEquals("lzoo", mref.ref(mref.to().lzoo()));
-		assertEquals("bzoo", mref.ref(mref.to().bzoo()));
-		assertEquals("szoo", mref.ref(mref.to().szoo()));
-		assertEquals("czoo", mref.ref(mref.to().czoo()));
-		assertEquals("yzoo", mref.ref(mref.to().yzoo()));
+	void testPrimitives() {
+		final Methref<Str> mref = Methref.of(Str.class);
+		assertEquals("izoo", mref.name(Str::izoo));
+		assertEquals("fzoo", mref.name(Str::fzoo));
+		assertEquals("dzoo", mref.name(Str::dzoo));
+		assertEquals("lzoo", mref.name(Str::lzoo));
+		assertEquals("bzoo", mref.name(Str::bzoo));
+		assertEquals("szoo", mref.name(Str::szoo));
+		assertEquals("czoo", mref.name(Str::czoo));
+		assertEquals("yzoo", mref.name(Str::yzoo));
+
+		mref.proxy().izoo();
+		assertEquals("izoo", mref.lastName());
+		mref.proxy().fzoo();
+		assertEquals("fzoo", mref.lastName());
+		mref.proxy().dzoo();
+		assertEquals("dzoo", mref.lastName());
+		mref.proxy().lzoo();
+		assertEquals("lzoo", mref.lastName());
+		mref.proxy().bzoo();
+		assertEquals("bzoo", mref.lastName());
+		mref.proxy().szoo();
+		assertEquals("szoo", mref.lastName());
+		mref.proxy().czoo();
+		assertEquals("czoo", mref.lastName());
+		mref.proxy().yzoo();
+		assertEquals("yzoo", mref.lastName());
 	}
 
 	@Test
-	public void testVoidOrTwoSteps() {
-		Methref<Str> m = Methref.on(Str.class);
-		m.to().voo();
-		assertEquals("voo", m.ref());
+	void testVoidOrTwoSteps() {
+		final Methref<Str> m = Methref.of(Str.class);
+		assertEquals("voo", m.name(Str::voo));
+
+		m.proxy().voo();
+		assertEquals("voo", m.lastName());
 	}
 
 	@Test
-	public void testMethRefOnProxifiedClass() {
-		Methref<? extends Oink> m = Methref.on(Oink.class);
-		m.to().woink();
-		assertEquals("woink", m.ref());
+	void testMethRefOnProxifiedClass() {
+		Methref<? extends Oink> m = Methref.of(Oink.class);
+		String name = m.name(Oink::woink);
+		assertEquals("woink", name);
 
-		ProxyAspect a1 = new ProxyAspect(DummyAdvice.class, new AllTopMethodsPointcut());
-		ProxyProxetta pp = ProxyProxetta.withAspects(a1);
-		Oink oink = (Oink) pp.builder(Oink.class).newInstance();
+		final ProxyAspect a1 = new ProxyAspect(DummyAdvice.class, new AllTopMethodsPointcut());
+		final ProxyProxetta pp = Proxetta.proxyProxetta().withAspect(a1);
+		final Oink oink = (Oink) pp.proxy().setTarget(Oink.class).newInstance();
 
-		assertFalse(oink.getClass().equals(Oink.class));
+		assertNotEquals(oink.getClass(), Oink.class);
 
-		m = Methref.on(oink.getClass());
-		m.to().woink();
-		assertEquals("woink", m.ref());
+		m = Methref.of(oink.getClass());
+		name = m.name(Oink::woink);
+		assertEquals("woink", name);
 	}
 
 	@Test
-	public void testParallelAccess() {
-		Methref<Str> methref1 = Methref.on(Str.class);
+	void testParallelAccess() {
+		final Methref<Str> methref1 = Methref.of(Str.class);
 
-		String m1 = methref1.ref(methref1.to().boo());
+		final String m1 = methref1.name(Str::boo);
 
-		Methref<Str> methref2 = Methref.on(Str.class);
+		final Methref<Str> methref2 = Methref.of(Str.class);
 
-		String m2 = methref2.ref(methref2.to().foo());
+		final String m2 = methref2.name(Str::foo);
 
-		assertEquals(m1, methref1.ref());
-		assertEquals(m2, methref2.ref());
-
+		assertEquals("boo", m1);
+		assertEquals("foo", m2);
 	}
 }

@@ -27,24 +27,24 @@ package jodd.cache;
 
 import jodd.io.FileUtil;
 import jodd.util.SystemUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class FileLFUCacheTest {
+class FileLFUCacheTest {
 
-	private File tempFolder = new File(SystemUtil.tempDir());
+	private final File tempFolder = new File(SystemUtil.info().getTempDir());
 
-	private File file(String fileName, int size) throws IOException {
-		byte[] bytes = new byte[size];
+	private File file(final String fileName, final int size) throws IOException {
+		final byte[] bytes = new byte[size];
 		for (int i = 0; i < size; i++) {
 			bytes[i] = (byte) i;
 		}
 
-		File file = new File(tempFolder, fileName);
+		final File file = new File(tempFolder, fileName);
 		file.deleteOnExit();
 
 		FileUtil.writeBytes(file, bytes);
@@ -53,28 +53,28 @@ public class FileLFUCacheTest {
 	}
 
 	@Test
-	public void testCache() throws IOException {
-		FileLFUCache cache = new FileLFUCache(25);
+	void testCache() throws IOException {
+		final FileLFUCache cache = new FileLFUCache(25);
 
-		assertEquals(25, cache.getMaxSize());
-		assertEquals(12, cache.getMaxFileSize());
+		assertEquals(25, cache.maxSize());
+		assertEquals(12, cache.maxFileSize());
 
-		File a = file("a", 10);
-		File b = file("b", 9);
-		File c = file("c", 7);
+		final File a = file("a", 10);
+		final File b = file("b", 9);
+		final File c = file("c", 7);
 
 		cache.getFileBytes(a);
 		cache.getFileBytes(a);
 		cache.getFileBytes(a);
 		cache.getFileBytes(b);
 
-		assertEquals(2, cache.getCachedFilesCount());
-		assertEquals(19, cache.getUsedSize());
+		assertEquals(2, cache.cachedFilesCount());
+		assertEquals(19, cache.usedSize());
 
 		cache.getFileBytes(c);        // b is out, a(2), c(1)
 
-		assertEquals(2, cache.getCachedFilesCount());
-		assertEquals(17, cache.getUsedSize());
+		assertEquals(2, cache.cachedFilesCount());
+		assertEquals(17, cache.usedSize());
 
 		cache.getFileBytes(c);
 		cache.getFileBytes(c);
@@ -82,7 +82,7 @@ public class FileLFUCacheTest {
 
 		cache.getFileBytes(b);        // a is out
 
-		assertEquals(2, cache.getCachedFilesCount());
-		assertEquals(16, cache.getUsedSize());
+		assertEquals(2, cache.cachedFilesCount());
+		assertEquals(16, cache.usedSize());
 	}
 }

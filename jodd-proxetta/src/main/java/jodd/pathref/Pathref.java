@@ -26,16 +26,13 @@
 package jodd.pathref;
 
 import jodd.proxetta.ProxettaUtil;
-import jodd.util.ReflectUtil;
+import jodd.util.ClassUtil;
 import jodd.util.StringPool;
 import jodd.util.StringUtil;
+import jodd.util.TypeCache;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 /**
  * Super tool for getting calling path reference in compile-time.
@@ -45,8 +42,9 @@ public class Pathref<C> {
 
 	public static final int ALL = -1;
 
+	public static TypeCache<Class> cache = TypeCache.<Class>create().threadsafe(true).get();
+
 	private static final PathrefProxetta proxetta = new PathrefProxetta();
-	private static final Map<Class, Class> cache = new WeakHashMap<>();
 
 	private final C instance;
 
@@ -56,8 +54,8 @@ public class Pathref<C> {
 	 * proxified, it's real target will be used.
 	 */
 	@SuppressWarnings({"unchecked"})
-	public Pathref(Class<C> target) {
-		C proxy = createProxyObject(target);
+	public Pathref(final Class<C> target) {
+		final C proxy = createProxyObject(target);
 
 		this.instance = proxy;
 
@@ -66,8 +64,8 @@ public class Pathref<C> {
 		this.path = StringPool.EMPTY;
 	}
 
-	private Pathref(Class<C> target, Pathref root) {
-		C proxy = createProxyObject(target);
+	Pathref(final Class<C> target, final Pathref root) {
+		final C proxy = createProxyObject(target);
 
         this.instance = proxy;
 
@@ -80,21 +78,15 @@ public class Pathref<C> {
 	 * Creates proxy object.
 	 */
 	protected C createProxyObject(Class<C> target) {
-		target = ProxettaUtil.getTargetClass(target);
+		target = ProxettaUtil.resolveTargetClass(target);
 
-		Class proxyClass = cache.get(target);
+		final Class proxyClass = cache.get(target, proxetta::defineProxy);
 
-		if (proxyClass == null) {
-			proxyClass = proxetta.defineProxy(target);
-
-			cache.put(target, proxyClass);
-		}
-
-		C proxy;
+		final C proxy;
 
 		try {
-			proxy = (C) proxyClass.newInstance();
-		} catch (Exception ex) {
+			proxy = (C) ClassUtil.newInstance(proxyClass);
+		} catch (final Exception ex) {
 			throw new PathrefException(ex);
 		}
 
@@ -108,7 +100,7 @@ public class Pathref<C> {
 	/**
 	 * Appends method name to existing path.
 	 */
-	protected void append(String methodName) {
+	protected void append(final String methodName) {
 		if (path.length() != 0) {
 			path += StringPool.DOT;
 		}
@@ -121,121 +113,45 @@ public class Pathref<C> {
 	/**
 	 * Static factory, for convenient use.
 	 */
-	public static <T> Pathref<T> on(Class<T> target) {
+	public static <T> Pathref<T> of(final Class<T> target) {
 		return new Pathref<>(target);
-	}
-
-	/**
-	 * Static factory of next target. It handles special cases of maps, sets
-	 * and lists. In case target can not be proxified (like for Java classes)
-	 * it returns <code>null</code>.
-	 */
-	@SuppressWarnings("unchecked")
-	public <T> T continueWith(Object currentInstance, String methodName, final Class<T> target) {
-		Class currentClass = currentInstance.getClass();
-
-		Method method;
-
-		try {
-			method = currentClass.getDeclaredMethod(methodName);
-		}
-		catch (NoSuchMethodException e) {
-			throw new PathrefException("Not a getter: " + methodName, e);
-		}
-
-		if (!ReflectUtil.isBeanPropertyGetter(method)) {
-			throw new PathrefException("Not a getter: " + methodName);
-		}
-
-		String getterName = ReflectUtil.getBeanPropertyGetterName(method);
-
-		append(getterName);
-
-		if (ReflectUtil.isTypeOf(target, List.class)) {
-			final Class componentType =
-				ReflectUtil.getComponentType(method.getGenericReturnType(), currentClass, 0);
-
-			if (componentType == null) {
-				throw new PathrefException("Unknown component name for: " + methodName);
-			}
-
-			return (T) new ArrayList() {
-				@Override
-				public Object get(int index) {
-					if (index >= 0) {
-						append("[" + index + "]");
-					}
-					return new Pathref<>(componentType, Pathref.this).to();
-				}
-			};
-		}
-
-		try {
-			return new Pathref<>(target, this).to();
-		}
-		catch (Exception ex) {
-			return null;
-		}
 	}
 
 	/**
 	 * Returns proxy instance of target class, so methods can be called
 	 * immediately after (fluent interface).
 	 */
-	public C to() {
+	C get() {
 		path = StringPool.EMPTY;
 		return instance;
 	}
 
-	// ---------------------------------------------------------------- ref
-
-	public String path(int dummy) {
-		return path(null);
-	}
-	public String path(short dummy) {
-		return path(null);
-	}
-	public String path(byte dummy) {
-		return path(null);
-	}
-	public String path(char dummy) {
-		return path(null);
-	}
-	public String path(long dummy) {
-		return path(null);
-	}
-	public String path(float dummy) {
-		return path(null);
-	}
-	public String path(double dummy) {
-		return path(null);
-	}
-	public String path(boolean dummy) {
-		return path(null);
+	public String path(final Consumer<C> consumer) {
+		path = StringPool.EMPTY;
+		consumer.accept(proxy());
+		return path();
 	}
 
-	/**
-	 * Returns the path.
-	 */
-	public String path(Object object) {
-		return path;
-	}
-
-	/**
-	 * Returns the path.
-	 */
-	public String path() {
-		return path;
-	}
-
-	protected void injectPathRef(Pathref pathref, Object instance) {
+	protected static void injectPathRef(final Pathref pathref, final Object target) {
 		try {
-			Field f = instance.getClass().getDeclaredField("$__pathref$0");
+			final Field f = target.getClass().getDeclaredField("$__pathref$0");
 			f.setAccessible(true);
-			f.set(instance, pathref);
-		} catch (Exception ex) {
+			f.set(target, new PathrefContinue(pathref));
+		} catch (final Exception ex) {
 			throw new PathrefException("Pathref field not found", ex);
 		}
+	}
+
+	// ----------------------------------------------------------------
+
+	public C proxy() {
+		return instance;
+	}
+
+	public String path() {
+		final String collectedPath = path;
+		this.path = StringPool.EMPTY;
+		return collectedPath;
 	}
 
 }

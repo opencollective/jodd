@@ -3,9 +3,9 @@ ext.moduleName = 'Jodd JTX'
 ext.moduleDescription = 'Jodd JTX manager.'
 
 dependencies {
-	compile project(':jodd-core')
-	compile project(':jodd-proxetta'), optional
-	compile project(':jodd-log')
+	api project(':jodd-core')
+	api project(':jodd-proxetta')
+	api 'org.slf4j:slf4j-api:1.7.30'
 
-	testCompile lib.junit
+	testImplementation lib.junit5
 }

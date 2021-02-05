@@ -37,17 +37,18 @@ import static jodd.proxetta.ProxyTarget.targetMethodName;
  */
 public class MethrefAdvice implements ProxyAdvice {
 
-	String methodName;
+	Methref methref;
 
 	/**
 	 * Reads method name and stores it in local variable.
 	 * For methods that return <code>String</code> returns the method name,
 	 * otherwise returns <code>null</code>.
 	 */
+	@Override
 	public Object execute() {
-		methodName = targetMethodName();
+		methref.lastName(targetMethodName());
 
-		Class returnType = returnType();
+		final Class returnType = returnType();
 
 		if (returnType == String.class) {
 			return ProxyTarget.returnValue(targetMethodName());

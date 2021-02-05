@@ -27,13 +27,11 @@ package jodd.servlet.filter;
 
 import jodd.io.FileNameUtil;
 import jodd.servlet.ServletUtil;
-import jodd.typeconverter.Convert;
+import jodd.typeconverter.Converter;
 import jodd.typeconverter.TypeConversionException;
 import jodd.util.StringPool;
 import jodd.util.StringUtil;
 import jodd.util.Wildcard;
-
-import java.io.IOException;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -43,6 +41,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 /**
  * Compresses output with GZIP, for browsers that supports it.
@@ -88,9 +87,10 @@ public class GzipFilter implements Filter {
 	 * <p>
 	 * If browser does not support gzip, invokes resource normally.
 	 */
-	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws ServletException, IOException {
-		HttpServletRequest req = (HttpServletRequest) request;
-		HttpServletResponse res = (HttpServletResponse) response;
+	@Override
+	public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws ServletException, IOException {
+		final HttpServletRequest req = (HttpServletRequest) request;
+		final HttpServletResponse res = (HttpServletResponse) response;
 
 		if (
 				(threshold == 0) ||
@@ -101,7 +101,7 @@ public class GzipFilter implements Filter {
 			return;
 		}
 
-		GzipResponseWrapper wrappedResponse = new GzipResponseWrapper(res);
+		final GzipResponseWrapper wrappedResponse = new GzipResponseWrapper(res);
 		wrappedResponse.setCompressionThreshold(threshold);
 
 		try {
@@ -121,23 +121,24 @@ public class GzipFilter implements Filter {
 	/**
 	 * Filter initialization.
 	 */
-	public void init(FilterConfig config) throws ServletException {
+	@Override
+	public void init(final FilterConfig config) {
 
 		try {
-			wildcards = Convert.toBooleanValue(config.getInitParameter("wildcards"), false);
-		} catch (TypeConversionException ignore) {
+			wildcards = Converter.get().toBooleanValue(config.getInitParameter("wildcards"), false);
+		} catch (final TypeConversionException ignore) {
 			wildcards = false;
 		}
 
 		// min size
 		try {
-			threshold = Convert.toIntValue(config.getInitParameter("threshold"), 0);
-		} catch (TypeConversionException ignore) {
+			threshold = Converter.get().toIntValue(config.getInitParameter("threshold"), 0);
+		} catch (final TypeConversionException ignore) {
 			threshold = 0;
 		}
 
 		// match string
-		String uriMatch = config.getInitParameter("match");
+		final String uriMatch = config.getInitParameter("match");
 
 		if ((uriMatch != null) && (!uriMatch.equals(StringPool.STAR))) {
 			matches = StringUtil.splitc(uriMatch, ',');
@@ -147,7 +148,7 @@ public class GzipFilter implements Filter {
 		}
 
 		// exclude string
-		String uriExclude = config.getInitParameter("exclude");
+		final String uriExclude = config.getInitParameter("exclude");
 
 		if (uriExclude != null) {
 			excludes = StringUtil.splitc(uriExclude, ',');
@@ -167,7 +168,7 @@ public class GzipFilter implements Filter {
 
 		// allowed extensions
 
-		String urlExtensions = config.getInitParameter("extensions");
+		final String urlExtensions = config.getInitParameter("extensions");
 
 		if (urlExtensions != null) {
 			if (urlExtensions.equals(StringPool.STAR)) {
@@ -181,20 +182,21 @@ public class GzipFilter implements Filter {
 
 	}
 
+	@Override
 	public void destroy() {
 	}
 
 	/**
 	 * Determine if request is eligible for GZipping.
 	 */
-	protected boolean isGzipEligible(HttpServletRequest request) {
+	protected boolean isGzipEligible(final HttpServletRequest request) {
 		// request parameter name
 
 		if (requestParameterName.length() != 0) {
-			String forceGzipString = request.getParameter(requestParameterName);
+			final String forceGzipString = request.getParameter(requestParameterName);
 
 			if (forceGzipString != null) {
-				return Convert.toBooleanValue(forceGzipString, false);
+				return Converter.get().toBooleanValue(forceGzipString, false);
 			}
 		}
 
@@ -230,7 +232,7 @@ public class GzipFilter implements Filter {
 			if (wildcards) {
 				result = Wildcard.matchPathOne(uri, matches) != -1;
 			} else {
-				for (String match : matches) {
+				for (final String match : matches) {
 					if (uri.contains(match)) {
 						result = true;
 						break;
@@ -245,7 +247,7 @@ public class GzipFilter implements Filter {
 					result = false;
 				}
 			} else {
-				for (String exclude : excludes) {
+				for (final String exclude : excludes) {
 					if (uri.contains(exclude)) {
 						result = false;						// excludes founded
 						break;

@@ -25,10 +25,10 @@
 
 package jodd.db.oom.sqlgen.chunks;
 
-import jodd.db.oom.DbEntityDescriptor;
-import jodd.db.oom.DbEntityColumnDescriptor;
 import jodd.bean.BeanUtil;
-import jodd.db.oom.DbOomUtil;
+import jodd.db.DbOom;
+import jodd.db.oom.DbEntityColumnDescriptor;
+import jodd.db.oom.DbEntityDescriptor;
 import jodd.util.StringUtil;
 
 /**
@@ -42,37 +42,43 @@ public class UpdateSetChunk extends SqlChunk {
 	protected final Object data;
 	protected final String tableRef;
 	protected final int includeColumns;
+	protected final boolean isUpdateablePrimaryKey;
 
-	public UpdateSetChunk(String tableRef, Object data, int includeColumns) {
-		super(CHUNK_UPDATE);
+	public UpdateSetChunk(final DbOom dbOom, final String tableRef, final Object data, final int includeColumns) {
+		super(dbOom.entityManager(), CHUNK_UPDATE);
 		this.tableRef = tableRef;
 		this.data = data;
 		this.includeColumns = includeColumns;
+		this.isUpdateablePrimaryKey = dbOom.config().isUpdateablePrimaryKey();
 	}
 
 	@Override
-	public void process(StringBuilder out) {
+	public void process(final StringBuilder out) {
 		if (isPreviousChunkOfType(CHUNK_TABLE)) {
 			appendMissingSpace(out);
 		}
 
-		DbEntityDescriptor ded = tableRef != null ?
+		final DbEntityDescriptor ded = tableRef != null ?
 				lookupTableRef(tableRef) :
 				lookupType(resolveClass(data));
 
 		out.append(SET);
 
-		DbEntityColumnDescriptor[] decList = ded.getColumnDescriptors();
-		String typeName = StringUtil.uncapitalize(ded.getEntityName());
+		final DbEntityColumnDescriptor[] decList = ded.getColumnDescriptors();
+		final String typeName = StringUtil.uncapitalize(ded.getEntityName());
 		//String table = resolveTable(tableRef, ded);
 
 		int size = 0;
-		for (DbEntityColumnDescriptor dec : decList) {
-			String property = dec.getPropertyName();
-			Object value = BeanUtil.declared.getProperty(data, property);
+		for (final DbEntityColumnDescriptor dec : decList) {
+			if (dec.isId() && !isUpdateablePrimaryKey) {
+				continue;
+			}
+
+			final String property = dec.getPropertyName();
+			final Object value = BeanUtil.declared.getProperty(data, property);
 
 			if (includeColumns == COLS_ONLY_EXISTING) {
-				if (DbOomUtil.isEmptyColumnValue(dec, value)) {
+				if (isEmptyColumnValue(dec, value)) {
 					continue;
 				}
 			}
@@ -90,9 +96,9 @@ public class UpdateSetChunk extends SqlChunk {
 
 			//out.append(table).append('.');
 
-			out.append(dec.getColumnName()).append('=');
+			out.append(dec.getColumnNameForQuery()).append('=');
 
-			String propertyName = typeName + '.' + property;
+			final String propertyName = typeName + '.' + property;
 			defineParameter(out, propertyName, value, dec);
 		}
 		if (size > 0) {

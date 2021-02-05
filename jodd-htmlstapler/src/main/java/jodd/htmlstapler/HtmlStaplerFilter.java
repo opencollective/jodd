@@ -26,25 +26,24 @@
 package jodd.htmlstapler;
 
 import jodd.bean.BeanUtil;
-import jodd.datetime.TimeUtil;
-import jodd.io.StreamUtil;
+import jodd.io.IOUtil;
 import jodd.lagarto.TagVisitor;
-import jodd.lagarto.TagWriter;
 import jodd.lagarto.adapter.StripHtmlTagAdapter;
-import jodd.lagarto.filter.SimpleLagartoServletFilter;
+import jodd.lagarto.visitor.TagWriter;
+import jodd.net.MimeTypes;
 import jodd.servlet.DispatcherUtil;
 import jodd.servlet.ServletUtil;
-import jodd.util.MimeTypes;
+import jodd.servlet.lagarto.SimpleLagartoServletFilter;
+import jodd.time.TimeUtil;
 import jodd.util.StringPool;
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -71,7 +70,7 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 	protected Strategy staplerStrategy = Strategy.RESOURCES_ONLY;
 
 	@Override
-	public void init(FilterConfig filterConfig) throws ServletException {
+	public void init(final FilterConfig filterConfig) throws ServletException {
 		super.init(filterConfig);
 
 		bundlesManager = createBundleManager(filterConfig.getServletContext(), staplerStrategy);
@@ -84,7 +83,7 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 				"cacheMaxAge"
 		);
 
-		String staplerStrategyName = filterConfig.getInitParameter("strategy");
+		final String staplerStrategyName = filterConfig.getInitParameter("strategy");
 		if (staplerStrategyName != null) {
 			if (staplerStrategyName.equalsIgnoreCase("ACTION_MANAGED")) {
 				staplerStrategy = Strategy.ACTION_MANAGED;
@@ -110,9 +109,9 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 	/**
 	 * Reads filter config parameters and set into destination target.
 	 */
-	protected void readFilterConfigParameters(FilterConfig filterConfig, Object target, String... parameters) {
-		for (String parameter : parameters) {
-			String value = filterConfig.getInitParameter(parameter);
+	protected void readFilterConfigParameters(final FilterConfig filterConfig, final Object target, final String... parameters) {
+		for (final String parameter : parameters) {
+			final String value = filterConfig.getInitParameter(parameter);
 
 			if (value != null) {
 				BeanUtil.declared.setProperty(target, parameter, value);
@@ -123,10 +122,10 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 	/**
 	 * Creates {@link HtmlStaplerBundlesManager} instance.
 	 */
-	protected HtmlStaplerBundlesManager createBundleManager(ServletContext servletContext, Strategy strategy) {
-		String webRoot = servletContext.getRealPath(StringPool.EMPTY);
+	protected HtmlStaplerBundlesManager createBundleManager(final ServletContext servletContext, final Strategy strategy) {
+		final String webRoot = servletContext.getRealPath(StringPool.EMPTY);
 
-		String contextPath = ServletUtil.getContextPath(servletContext);
+		final String contextPath = ServletUtil.getContextPath(servletContext);
 
 		return new HtmlStaplerBundlesManager(contextPath, webRoot, strategy);
 	}
@@ -137,9 +136,9 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 			return null;
 		}
 
-		return new LagartoParsingProcessor(true) {
+		return new LagartoParsingProcessor() {
 			@Override
-			protected char[] parse(TagWriter rootTagWriter, HttpServletRequest request) {
+			protected char[] parse(final TagWriter rootTagWriter, final HttpServletRequest request) {
 
 				TagVisitor visitor = rootTagWriter;
 
@@ -156,14 +155,14 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 					};
 				}
 
-				String servletPath = DispatcherUtil.getServletPath(request);
+				final String servletPath = DispatcherUtil.getServletPath(request);
 
-				HtmlStaplerTagAdapter htmlStaplerTagAdapter =
+				final HtmlStaplerTagAdapter htmlStaplerTagAdapter =
 						new HtmlStaplerTagAdapter(bundlesManager, servletPath, visitor);
 
 				// todo add more adapters
 
-				char[] content = invokeLagarto(htmlStaplerTagAdapter);
+				final char[] content = invokeLagarto(htmlStaplerTagAdapter);
 
 				return htmlStaplerTagAdapter.postProcess(content);
 			}
@@ -171,15 +170,15 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 	}
 
 	@Override
-	protected boolean processActionPath(HttpServletRequest servletRequest, HttpServletResponse servletResponse, String actionPath) throws IOException {
+	protected boolean processActionPath(final HttpServletRequest servletRequest, final HttpServletResponse servletResponse, final String actionPath) throws IOException {
 
-		String bundlePath = '/' + bundlesManager.getStaplerPath() + '/';
+		final String bundlePath = '/' + bundlesManager.getStaplerPath() + '/';
 
 		if (!actionPath.startsWith(bundlePath)) {
 			return false;
 		}
 
-		String bundleId = actionPath.substring(bundlePath.length());
+		final String bundleId = actionPath.substring(bundlePath.length());
 
 		File file = bundlesManager.lookupBundleFile(bundleId);
 
@@ -187,10 +186,10 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 			log.debug("bundle: " + bundleId);
 		}
 
-		int ndx = bundleId.lastIndexOf('.');
-		String extension = bundleId.substring(ndx + 1);
+		final int ndx = bundleId.lastIndexOf('.');
+		final String extension = bundleId.substring(ndx + 1);
 
-		String contentType = MimeTypes.getMimeType(extension);
+		final String contentType = MimeTypes.getMimeType(extension);
 		servletResponse.setContentType(contentType);
 
 		if (useGzip && ServletUtil.isGzipSupported(servletRequest)) {
@@ -218,14 +217,14 @@ public class HtmlStaplerFilter extends SimpleLagartoServletFilter {
 	/**
 	 * Outputs bundle file to the response.
 	 */
-	protected void sendBundleFile(HttpServletResponse resp, File bundleFile) throws IOException {
-		OutputStream out = resp.getOutputStream();
-		FileInputStream fileInputStream = new FileInputStream(bundleFile);
+	protected void sendBundleFile(final HttpServletResponse resp, final File bundleFile) throws IOException {
+		final OutputStream out = resp.getOutputStream();
+		final FileInputStream fileInputStream = new FileInputStream(bundleFile);
 		try {
-			StreamUtil.copy(fileInputStream, out);
+			IOUtil.copy(fileInputStream, out);
 		}
 		finally {
-			StreamUtil.close(fileInputStream);
+			IOUtil.close(fileInputStream);
 		}
 	}
 

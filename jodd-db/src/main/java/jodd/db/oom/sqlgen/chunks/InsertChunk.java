@@ -25,9 +25,10 @@
 
 package jodd.db.oom.sqlgen.chunks;
 
-import jodd.db.oom.DbEntityDescriptor;
-import jodd.db.oom.DbEntityColumnDescriptor;
 import jodd.bean.BeanUtil;
+import jodd.db.oom.DbEntityColumnDescriptor;
+import jodd.db.oom.DbEntityDescriptor;
+import jodd.db.oom.DbEntityManager;
 import jodd.util.StringUtil;
 
 /**
@@ -39,35 +40,54 @@ public class InsertChunk extends SqlChunk {
 	protected final String entityName;
 	protected final Class entityType;
 	protected final Object data;
+	protected final boolean defaultIsUpdateablePrimaryKey;
 
-	public InsertChunk(String entityName, Object data) {
-		this(entityName, null, data);
+	public InsertChunk(
+			final DbEntityManager dbEntityManager,
+			final boolean isUpdateablePrimaryKey,
+			final String entityName,
+			final Object data) {
+		this(dbEntityManager, isUpdateablePrimaryKey, entityName, null, data);
 	}
 
-	public InsertChunk(Class entityType, Object data) {
-		this(null, entityType, data);
+	public InsertChunk(
+			final DbEntityManager dbEntityManager,
+			final boolean isUpdateablePrimaryKey,
+			final Class entityType,
+			final Object data) {
+		this(dbEntityManager, isUpdateablePrimaryKey, null, entityType, data);
 	}
 
-	protected InsertChunk(String entityName, Class entityType, Object data) {
-		super(CHUNK_INSERT);
+	private InsertChunk(
+			final DbEntityManager dbEntityManager,
+			final boolean isUpdateablePrimaryKey,
+			final String entityName,
+			final Class entityType,
+			final Object data) {
+		super(dbEntityManager, CHUNK_INSERT);
+		this.defaultIsUpdateablePrimaryKey = isUpdateablePrimaryKey;
 		this.entityName = entityName;
 		this.entityType = entityType;
 		this.data = data;
 	}
 
 	@Override
-	public void process(StringBuilder out) {
-		DbEntityDescriptor ded = entityName != null ? lookupName(entityName) : lookupType(entityType);
-		StringBuilder col = new StringBuilder();
-		StringBuilder val = new StringBuilder();
+	public void process(final StringBuilder out) {
+		final DbEntityDescriptor ded = entityName != null ? lookupName(entityName) : lookupType(entityType);
+		final StringBuilder col = new StringBuilder();
+		final StringBuilder val = new StringBuilder();
 
-		DbEntityColumnDescriptor[] decList = ded.getColumnDescriptors();
-		String typeName = StringUtil.uncapitalize(ded.getEntityName());
+		final DbEntityColumnDescriptor[] decList = ded.getColumnDescriptors();
+		final String typeName = StringUtil.uncapitalize(ded.getEntityName());
 
 		int size = 0;
-		for (DbEntityColumnDescriptor dec : decList) {
-			String property = dec.getPropertyName();
-			Object value = BeanUtil.declared.getProperty(data, property);
+		for (final DbEntityColumnDescriptor dec : decList) {
+			 if (dec.isId() && !defaultIsUpdateablePrimaryKey) {
+			 	continue;
+			 }
+
+			final String property = dec.getPropertyName();
+			final Object value = BeanUtil.declared.getProperty(data, property);
 			if (value == null) {
 				continue;
 			}
@@ -77,13 +97,13 @@ public class InsertChunk extends SqlChunk {
 				val.append(',').append(' ');
 			}
 			size++;
-			col.append(dec.getColumnName());
+			col.append(dec.getColumnNameForQuery());
 
-			String propertyName = typeName + '.' + property;
+			final String propertyName = typeName + '.' + property;
 			defineParameter(val, propertyName, value, dec);
 		}
 
-		out.append("insert into ").append(ded.getTableName()).append(" (")
+		out.append("insert into ").append(ded.getTableNameForQuery()).append(" (")
 				.append(col).append(") values (").append(val).append(')');
 	}
 

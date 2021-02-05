@@ -25,12 +25,12 @@
 
 package jodd.db.jtx;
 
-import jodd.db.DbSessionProvider;
 import jodd.db.DbSession;
+import jodd.db.DbSessionProvider;
 import jodd.db.DbSqlException;
 import jodd.jtx.JtxTransactionManager;
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Returns session from the db {@link JtxTransactionManager transaction manager},
@@ -45,17 +45,18 @@ public class DbJtxSessionProvider implements DbSessionProvider {
 	/**
 	 * Creates new JTX session provider.
 	 */
-	public DbJtxSessionProvider(JtxTransactionManager txManager) {
+	public DbJtxSessionProvider(final JtxTransactionManager txManager) {
 		this.jtxTxManager = txManager;
 	}
 
 	/**
 	 * Returns session from JTX transaction manager and started transaction.
 	 */
+	@Override
 	public DbSession getDbSession() {
 		log.debug("Requesting db TX manager session");
 
-		DbJtxTransaction jtx = (DbJtxTransaction) jtxTxManager.getTransaction();
+		final DbJtxTransaction jtx = (DbJtxTransaction) jtxTxManager.getTransaction();
 
 		if (jtx == null) {
 			throw new DbSqlException(

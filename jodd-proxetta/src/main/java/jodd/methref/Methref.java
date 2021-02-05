@@ -26,10 +26,11 @@
 package jodd.methref;
 
 import jodd.proxetta.ProxettaUtil;
+import jodd.util.ClassUtil;
+import jodd.util.TypeCache;
 
 import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 /**
  * Super tool for getting method references (names) in compile-time.
@@ -37,10 +38,16 @@ import java.util.WeakHashMap;
 @SuppressWarnings({"UnusedDeclaration"})
 public class Methref<C> {
 
+	public static TypeCache<Class> cache = TypeCache.<Class>create().threadsafe(true).get();
+
 	private static final MethrefProxetta proxetta = new MethrefProxetta();
-	private static final Map<Class, Class> cache = new WeakHashMap<>();
 
 	private final C instance;
+	/**
+	 * Last called method name. Don't use this field directly.
+	 */
+	private String lastName;
+
 
 	/**
 	 * Creates new proxified instance of target.
@@ -49,25 +56,25 @@ public class Methref<C> {
 	 */
 	@SuppressWarnings({"unchecked"})
 	public Methref(Class<C> target) {
-		target = ProxettaUtil.getTargetClass(target);
+		target = ProxettaUtil.resolveTargetClass(target);
 
-		Class proxyClass = cache.get(target);
-
-		if (proxyClass == null) {
-			proxyClass = proxetta.defineProxy(target);
-
-			cache.put(target, proxyClass);
+		if (target.isInterface()) {
+			this.instance = InterfaceImplementation.of(target).createInstanceFor(this);
+			return;
 		}
 
-		C proxy;
+		final Class proxyClass = cache.get(target, proxetta::defineProxy);
+
+		final C proxy;
 
 		try {
-			proxy = (C) proxyClass.newInstance();
-		} catch (Exception ex) {
+			proxy = (C) ClassUtil.newInstance(proxyClass);
+			injectMethref(proxy);
+		} catch (final Exception ex) {
 			throw new MethrefException(ex);
 		}
 
-        this.instance = proxy;
+		this.instance = proxy;
 	}
 
 	// ---------------------------------------------------------------- use
@@ -75,84 +82,73 @@ public class Methref<C> {
 	/**
 	 * Static factory, for convenient use.
 	 */
-	public static <T> Methref<T> on(Class<T> target) {
+	public static <T> Methref<T> of(final Class<T> target) {
 		return new Methref<>(target);
 	}
 
 	/**
-	 * Static factory that immediately returns {@link #to() method picker}.
+	 * Returns name of called method.
 	 */
-	public static <T> T onto(Class<T> target) {
-		return new Methref<>(target).to();
+	public String name(final Consumer<C> consumer) {
+		consumer.accept(proxy());
+		return lastName();
 	}
 
+
+	// ---------------------------------------------------------------- proxy method
+
+	private boolean injectedMethref = false;
+
 	/**
-	 * Returns proxy instance of target class, so methods can be called
-	 * immediately after (fluent interface).
+	 * Returns proxy instance that is ready to collect the method name of invoked methods.
 	 */
-	public C to() {
+	public C proxy() {
+		if (!injectedMethref) {
+
+			injectedMethref = true;
+		}
 		return instance;
 	}
 
-	// ---------------------------------------------------------------- ref
-
-	public String ref(int dummy) {
-		return ref(null);
-	}
-	public String ref(short dummy) {
-		return ref(null);
-	}
-	public String ref(byte dummy) {
-		return ref(null);
-	}
-	public String ref(char dummy) {
-		return ref(null);
-	}
-	public String ref(long dummy) {
-		return ref(null);
-	}
-	public String ref(float dummy) {
-		return ref(null);
-	}
-	public String ref(double dummy) {
-		return ref(null);
-	}
-	public String ref(boolean dummy) {
-		return ref(null);
+	/**
+	 * Returns {@code true} if given object is proxified by this Methref.
+	 */
+	public boolean isMyProxy(final Object instance) {
+		final Methref usedMethref = readMethref(instance);
+		return this == usedMethref;
 	}
 
 	/**
-	 * Resolves method name of method reference. Argument is used so {@link #to()}
-	 * can be called in convenient way. For methods that returns string,
-	 * value will be returned immediately.
+	 * Returns method name of last invoked method on a proxy.
 	 */
-	public String ref(Object dummy) {
-		if (dummy != null) {
-			if (dummy instanceof String) {
-				return (String) dummy;
-			}
-			throw new MethrefException("Target method not collected");
-		}
-		return ref();
-	}
-
-	/**
-	 * Returns name of method reference. Target {@link #on(Class) method} has
-	 * to be {@link #to() called} before it can return its reference.
-	 */
-	public String ref() {
-		if (instance == null) {
+	public static String lastName(final Object instance) {
+		final Methref m = readMethref(instance);
+		if (m == null) {
 			return null;
 		}
+		return m.lastName;
+	}
+
+	/**
+	 * Returns name of last method invoked on proxy.
+	 */
+	public <T> String lastName() {
+		return lastName;
+	}
+	
+	public void lastName(final String name) {
+		this.lastName = name;
+	}
+
+
+	// ---------------------------------------------------------------- detect
+
+	private void injectMethref(final C instance) {
 		try {
-			Field f = instance.getClass().getDeclaredField("$__methodName$0");
+			final Field f = instance.getClass().getDeclaredField("$__methref$0");
 			f.setAccessible(true);
-			Object name = f.get(instance);
-			if (name == null) {
-				throw new MethrefException("Target method not collected");
-			}
-			return name.toString();
-		} catch (Exception ex) {
+			f.set(instance, this);
+		} catch (final Exception ex) {
 			if (ex instanceof MethrefException) {
 				throw ((MethrefException) ex);
 			}
@@ -160,4 +156,16 @@ public class Methref<C> {
 		}
 	}
 
+	private static Methref readMethref(final Object instance) {
+		try {
+			final Field f = instance.getClass().getDeclaredField("$__methref$0");
+			f.setAccessible(true);
+			return (Methref) f.get(instance);
+		} catch (final Exception ex) {
+			if (ex instanceof MethrefException) {
+				throw ((MethrefException) ex);
+			}
+			return null;
+		}
+	}
 }

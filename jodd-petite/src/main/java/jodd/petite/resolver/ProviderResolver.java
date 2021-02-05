@@ -28,8 +28,7 @@ package jodd.petite.resolver;
 import jodd.introspector.ClassDescriptor;
 import jodd.introspector.ClassIntrospector;
 import jodd.introspector.MethodDescriptor;
-import jodd.petite.BeanDefinition;
-import jodd.petite.ProviderDefinition;
+import jodd.petite.def.ProviderDefinition;
 import jodd.petite.meta.PetiteProvider;
 import jodd.util.StringUtil;
 
@@ -46,18 +45,16 @@ public class ProviderResolver {
 	/**
 	 * Resolves all providers in the class
 	 */
-	public ProviderDefinition[] resolve(BeanDefinition beanDefinition) {
-		Class type = beanDefinition.getType();
+	public ProviderDefinition[] resolve(final Class type, final String name) {
+		final ClassDescriptor cd = ClassIntrospector.get().lookup(type);
+		final MethodDescriptor[] methods = cd.getAllMethodDescriptors();
 
-		ClassDescriptor cd = ClassIntrospector.lookup(type);
-		MethodDescriptor[] methods = cd.getAllMethodDescriptors();
+		final List<ProviderDefinition> list = new ArrayList<>();
 
-		List<ProviderDefinition> list = new ArrayList<>();
+		for (final MethodDescriptor methodDescriptor : methods) {
+			final Method method = methodDescriptor.getMethod();
 
-		for (MethodDescriptor methodDescriptor : methods) {
-			Method method = methodDescriptor.getMethod();
-
-			PetiteProvider petiteProvider = method.getAnnotation(PetiteProvider.class);
+			final PetiteProvider petiteProvider = method.getAnnotation(PetiteProvider.class);
 			if (petiteProvider == null) {
 				continue;
 			}
@@ -73,23 +70,23 @@ public class ProviderResolver {
 				}
 			}
 
-			ProviderDefinition providerDefinition;
+			final ProviderDefinition providerDefinition;
 
 			if (Modifier.isStatic(method.getModifiers())) {
 				providerDefinition = new ProviderDefinition(providerName, method);
 			} else {
-				providerDefinition = new ProviderDefinition(providerName, beanDefinition.getName(), method);
+				providerDefinition = new ProviderDefinition(providerName, name, method);
 			}
 
 			list.add(providerDefinition);
 		}
 
-		ProviderDefinition[] providers;
+		final ProviderDefinition[] providers;
 
 		if (list.isEmpty()) {
 			providers = ProviderDefinition.EMPTY;
 		} else {
-			providers = list.toArray(new ProviderDefinition[list.size()]);
+			providers = list.toArray(new ProviderDefinition[0]);
 		}
 
 		return providers;

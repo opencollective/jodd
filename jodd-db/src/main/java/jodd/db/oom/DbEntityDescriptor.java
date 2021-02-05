@@ -31,6 +31,7 @@ import jodd.db.oom.naming.TableNamingStrategy;
 import jodd.introspector.ClassIntrospector;
 import jodd.introspector.PropertyDescriptor;
 import jodd.util.StringPool;
+import jodd.util.StringUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,14 +43,26 @@ import java.util.List;
  */
 public class DbEntityDescriptor<E> {
 
-	public DbEntityDescriptor(Class<E> type, String schemaName, TableNamingStrategy tableNamingStrategy, ColumnNamingStrategy columnNamingStrategy) {
+	public DbEntityDescriptor(
+			final Class<E> type,
+			final String schemaName,
+			final TableNamingStrategy tableNamingStrategy,
+			final ColumnNamingStrategy columnNamingStrategy) {
+
 		this.type = type;
 		this.entityName = type.getSimpleName();
 		this.isAnnotated = DbMetaUtil.resolveIsAnnotated(type);
 		this.schemaName = DbMetaUtil.resolveSchemaName(type, schemaName);
-		this.tableName = DbMetaUtil.resolveTableName(type, tableNamingStrategy);
 		this.columnNamingStrategy = columnNamingStrategy;
 		this.mappedTypes = DbMetaUtil.resolveMappedTypes(type);
+
+		this.tableNameForQuery = DbMetaUtil.resolveTableName(type, tableNamingStrategy);
+
+		if (StringUtil.detectQuoteChar(tableNameForQuery) != 0) {
+			this.tableName = StringUtil.substring(tableNameForQuery, 1, -1);
+		} else {
+			this.tableName = tableNameForQuery;
+		}
 	}
 
 	// ---------------------------------------------------------------- type and table
@@ -58,6 +71,7 @@ public class DbEntityDescriptor<E> {
 	private final String entityName;
 	private final boolean isAnnotated;
 	private final String tableName;
+	private final String tableNameForQuery;
 	private final String schemaName;
 	private final ColumnNamingStrategy columnNamingStrategy;
 	private final Class[] mappedTypes;
@@ -81,6 +95,13 @@ public class DbEntityDescriptor<E> {
 	 */
 	public String getTableName() {
 		return tableName;
+	}
+
+	/**
+	 * Returns table name to be used when generating queries.
+	 */
+	public String getTableNameForQuery() {
+		return tableNameForQuery;
 	}
 
 	/**
@@ -131,16 +152,16 @@ public class DbEntityDescriptor<E> {
 	/**
 	 * Resolves list of all columns and properties.
 	 */
-	private void resolveColumnsAndProperties(Class type) {
-		PropertyDescriptor[] allProperties = ClassIntrospector.lookup(type).getAllPropertyDescriptors();
-		List<DbEntityColumnDescriptor> decList = new ArrayList<>(allProperties.length);
+	private void resolveColumnsAndProperties(final Class type) {
+		final PropertyDescriptor[] allProperties = ClassIntrospector.get().lookup(type).getAllPropertyDescriptors();
+		final List<DbEntityColumnDescriptor> decList = new ArrayList<>(allProperties.length);
 		int idcount = 0;
 
-		HashSet<String> names = new HashSet<>(allProperties.length);
+		final HashSet<String> names = new HashSet<>(allProperties.length);
 
-		for (PropertyDescriptor propertyDescriptor : allProperties) {
+		for (final PropertyDescriptor propertyDescriptor : allProperties) {
 
-			DbEntityColumnDescriptor dec =
+			final DbEntityColumnDescriptor dec =
 					DbMetaUtil.resolveColumnDescriptors(this, propertyDescriptor, isAnnotated, columnNamingStrategy);
 
 			if (dec != null) {
@@ -158,14 +179,14 @@ public class DbEntityDescriptor<E> {
 		if (decList.isEmpty()) {
 			throw new DbOomException("No column mappings in entity: " + type);
 		}
-		columnDescriptors = decList.toArray(new DbEntityColumnDescriptor[decList.size()]);
+		columnDescriptors = decList.toArray(new DbEntityColumnDescriptor[0]);
 		Arrays.sort(columnDescriptors);
 
 		// extract ids from sorted list
 		if (idcount > 0) {
 			idColumnDescriptors = new DbEntityColumnDescriptor[idcount];
 			idcount = 0;
-			for (DbEntityColumnDescriptor dec : columnDescriptors) {
+			for (final DbEntityColumnDescriptor dec : columnDescriptors) {
 				if (dec.isId) {
 					idColumnDescriptors[idcount++] = dec;
 				}
@@ -178,12 +199,12 @@ public class DbEntityDescriptor<E> {
 	/**
 	 * Finds column descriptor by column name. Case is ignored.
 	 */
-	public DbEntityColumnDescriptor findByColumnName(String columnName) {
+	public DbEntityColumnDescriptor findByColumnName(final String columnName) {
 		if (columnName == null) {
 			return null;
 		}
 		init();
-		for (DbEntityColumnDescriptor columnDescriptor : columnDescriptors) {
+		for (final DbEntityColumnDescriptor columnDescriptor : columnDescriptors) {
 			if (columnDescriptor.columnName.equalsIgnoreCase(columnName)) {
 				return columnDescriptor;
 			}
@@ -193,12 +214,12 @@ public class DbEntityDescriptor<E> {
 	/**
 	 * Finds column descriptor by property name.
 	 */
-	public DbEntityColumnDescriptor findByPropertyName(String propertyName) {
+	public DbEntityColumnDescriptor findByPropertyName(final String propertyName) {
 		if (propertyName == null) {
 			return null;
 		}
 		init();
-		for (DbEntityColumnDescriptor columnDescriptor : columnDescriptors) {
+		for (final DbEntityColumnDescriptor columnDescriptor : columnDescriptors) {
 			if (columnDescriptor.propertyName.equals(propertyName)) {
 				return columnDescriptor;
 			}
@@ -210,16 +231,16 @@ public class DbEntityDescriptor<E> {
 	/**
 	 * Returns property name for specified column name.
 	 */
-	public String getPropertyName(String columnName) {
-		DbEntityColumnDescriptor dec = findByColumnName(columnName);
+	public String getPropertyName(final String columnName) {
+		final DbEntityColumnDescriptor dec = findByColumnName(columnName);
 		return dec == null ? null : dec.propertyName;
 	}
 
 	/**
 	 * Returns column name for specified property name..
 	 */
-	public String getColumnName(String propertyName) {
-		DbEntityColumnDescriptor dec = findByPropertyName(propertyName);
+	public String getColumnName(final String propertyName) {
+		final DbEntityColumnDescriptor dec = findByPropertyName(propertyName);
 		return dec == null ? null : dec.columnName;
 	}
 
@@ -278,16 +299,16 @@ public class DbEntityDescriptor<E> {
 	/**
 	 * Returns ID value for given entity instance.
 	 */
-	public Object getIdValue(E object) {
-		String propertyName = getIdPropertyName();
+	public Object getIdValue(final E object) {
+		final String propertyName = getIdPropertyName();
 		return BeanUtil.declared.getProperty(object, propertyName);
 	}
 
 	/**
 	 * Sets ID value for given entity.
 	 */
-	public void setIdValue(E object, Object value) {
-		String propertyName = getIdPropertyName();
+	public void setIdValue(final E object, final Object value) {
+		final String propertyName = getIdPropertyName();
 		BeanUtil.declared.setProperty(object, propertyName, value);
 	}
 
@@ -295,18 +316,19 @@ public class DbEntityDescriptor<E> {
 	 * Returns unique key for this entity. Returned key
 	 * is built from entity class and id value.
 	 */
-	public String getKeyValue(E object) {
-		Object idValue = getIdValue(object);
+	public String getKeyValue(final E object) {
+		final Object idValue = getIdValue(object);
 
-		String idValueString = idValue == null ?  StringPool.NULL : idValue.toString();
+		final String idValueString = idValue == null ?  StringPool.NULL : idValue.toString();
 
 		return type.getName().concat(StringPool.COLON).concat(idValueString);
 	}
 
 	// ---------------------------------------------------------------- toString
 	
+	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		sb.append("DbEntity: ");
 		if (schemaName != null) {
 			sb.append(schemaName);

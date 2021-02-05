@@ -25,36 +25,36 @@
 
 package jodd.madvoc.interceptor;
 
-import jodd.introspector.PropertyDescriptor;
-import jodd.madvoc.ActionRequest;
 import jodd.introspector.ClassDescriptor;
 import jodd.introspector.ClassIntrospector;
+import jodd.introspector.PropertyDescriptor;
+import jodd.madvoc.ActionRequest;
+import jodd.util.TypeCache;
 
 import java.lang.annotation.Annotation;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Performs some operation on all annotated properties. Helpful with injection of
  * application context into action objects.
  */
-public abstract class AnnotatedPropertyInterceptor extends BaseActionInterceptor {
+public abstract class AnnotatedPropertyInterceptor implements ActionInterceptor {
 
 	protected final Class<Annotation> annotations;
 
-	protected AnnotatedPropertyInterceptor(Class<Annotation> annotations) {
+	protected AnnotatedPropertyInterceptor(final Class<Annotation> annotations) {
 		this.annotations = annotations;
 	}
 
-	public Object intercept(ActionRequest actionRequest) throws Exception {
-		Object action = actionRequest.getAction();
-		Class actionType = action.getClass();
+	@Override
+	public Object intercept(final ActionRequest actionRequest) throws Exception {
+		final Object action = actionRequest.getAction();
+		final Class actionType = action.getClass();
 
-		PropertyDescriptor[] allProperties = lookupAnnotatedProperties(actionType);
+		final PropertyDescriptor[] allProperties = lookupAnnotatedProperties(actionType);
 
-		for (PropertyDescriptor propertyDescriptor : allProperties) {
+		for (final PropertyDescriptor propertyDescriptor : allProperties) {
 			onAnnotatedProperty(actionRequest, propertyDescriptor);
 		}
 		return actionRequest.invoke();
@@ -68,26 +68,26 @@ public abstract class AnnotatedPropertyInterceptor extends BaseActionInterceptor
 
 	// ---------------------------------------------------------------- cache and lookup
 
-	protected Map<Class<?>, PropertyDescriptor[]> annotatedProperties = new HashMap<>();
+	protected TypeCache<PropertyDescriptor[]> annotatedProperties = TypeCache.createDefault();
 	protected static final PropertyDescriptor[] EMPTY = new PropertyDescriptor[0];
 
 	/**
 	 * Lookups for annotated properties. Caches all annotated properties on the first
 	 * action class scan. 
 	 */
-	protected PropertyDescriptor[] lookupAnnotatedProperties(Class type) {
+	protected PropertyDescriptor[] lookupAnnotatedProperties(final Class type) {
 		PropertyDescriptor[] properties = annotatedProperties.get(type);
 
 		if (properties != null) {
 			return properties;
 		}
 
-		ClassDescriptor cd = ClassIntrospector.lookup(type);
-		PropertyDescriptor[] allProperties = cd.getAllPropertyDescriptors();
+		final ClassDescriptor cd = ClassIntrospector.get().lookup(type);
+		final PropertyDescriptor[] allProperties = cd.getAllPropertyDescriptors();
 
-		List<PropertyDescriptor> list = new ArrayList<>();
+		final List<PropertyDescriptor> list = new ArrayList<>();
 
-		for (PropertyDescriptor propertyDescriptor : allProperties) {
+		for (final PropertyDescriptor propertyDescriptor : allProperties) {
 
 			Annotation ann = null;
 
@@ -109,7 +109,7 @@ public abstract class AnnotatedPropertyInterceptor extends BaseActionInterceptor
 		if (list.isEmpty()) {
 			properties = EMPTY;
 		} else {
-			properties = list.toArray(new PropertyDescriptor[list.size()]);
+			properties = list.toArray(new PropertyDescriptor[0]);
 		}
 
 		annotatedProperties.put(type, properties);

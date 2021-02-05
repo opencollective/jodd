@@ -25,54 +25,50 @@
 
 package jodd.madvoc.proxetta;
 
-import jodd.madvoc.ActionDef;
 import jodd.madvoc.component.ActionsManager;
-import jodd.madvoc.ActionConfig;
-import jodd.proxetta.impl.ProxyProxetta;
+import jodd.madvoc.config.ActionDefinition;
+import jodd.madvoc.config.ActionRuntime;
+import jodd.petite.meta.PetiteInject;
+import jodd.proxetta.Proxetta;
+import jodd.util.TypeCache;
 
 import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.HashMap;
 
 /**
  * Madvoc {@link jodd.madvoc.component.ActionsManager actions manager} that works with Proxetta.
  */
 public class ProxettaAwareActionsManager extends ActionsManager {
 
-	protected final ProxyProxetta proxetta;
-	protected final Map<Class, Class> proxyActionClasses;
+	@PetiteInject
+	protected ProxettaSupplier proxettaSupplier;
 
-	public ProxettaAwareActionsManager(ProxyProxetta proxetta) {
-		this.proxetta = proxetta;
-		this.proxyActionClasses = new HashMap<>();
-	}
+	protected final TypeCache<Class> proxyActionClasses = TypeCache.<Class>create().threadsafe(true).get();
 
 	/**
 	 * Registers actions and applies proxetta on actions that are not already registered.
-	 * We need to define {@link jodd.madvoc.ActionDef} before we apply the proxy, using
+	 * We need to define {@link ActionDefinition} before we apply the proxy, using
 	 * target action class.
 	 */
 	@Override
-	protected synchronized ActionConfig registerAction(Class actionClass, Method actionMethod, ActionDef actionDef) {
-
-		if (proxetta != null) {
-			if (actionDef == null) {
-				actionDef = actionMethodParser.parseActionDef(actionClass, actionMethod);
-			}
-
-			// create proxy for action class if not already created
-
-			Class existing = proxyActionClasses.get(actionClass);
-
-			if (existing == null) {
-				existing = proxetta.builder(actionClass).define();
-
-				proxyActionClasses.put(actionClass, existing);
-			}
-
-			actionClass = existing;
+	public synchronized ActionRuntime registerAction(Class actionClass, final Method actionMethod, ActionDefinition actionDefinition) {
+		if (proxettaSupplier == null) {
+			return super.registerAction(actionClass, actionMethod, actionDefinition);
 		}
 
-		return super.registerAction(actionClass, actionMethod, actionDef);
+		if (actionDefinition == null) {
+			actionDefinition = actionMethodParser.parseActionDefinition(actionClass, actionMethod);
+		}
+
+		// create proxy for action class if not already created
+
+		final Class existing = proxyActionClasses.get(actionClass, (c) -> {
+			final Proxetta proxetta = proxettaSupplier.get();
+
+			return proxetta.proxy().setTarget(c).define();
+		});
+
+		actionClass = existing;
+
+		return super.registerAction(actionClass, actionMethod, actionDefinition);
 	}
 }

@@ -25,9 +25,13 @@
 
 package jodd.db.querymap;
 
-import jodd.db.DbManager;
+import jodd.core.JoddCore;
+import jodd.exception.UncheckedException;
+import jodd.io.findfile.ClassScanner;
 import jodd.props.Props;
-import jodd.props.PropsUtil;
+import jodd.util.StringUtil;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * {@link jodd.db.querymap.QueryMap} implementation based on
@@ -40,27 +44,31 @@ public class DbPropsQueryMap implements QueryMap {
 	protected final String[] patterns;
 	protected Props props;
 
-	public DbPropsQueryMap(String... patterns) {
+	public DbPropsQueryMap(final String... patterns) {
 		this.patterns = patterns;
-		load();
+		reload();
 	}
 
 	public DbPropsQueryMap() {
-		this("*.sql.props", "*.oom.props");
+		this("*.sql.props", "*.oom.props", "*.sql.properties", "*.oom.properties");
 	}
 
 	/**
-	 * Returns <code>Props</code> for additional fine tuning.
+	 * Returns <code>Props</code>.
 	 */
-	public Props getProps() {
+	public Props props() {
 		return props;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public void load() {
-		props = PropsUtil.createFromClasspath(patterns);
+	@Override
+	public void reload() {
+		props = new Props();
+		loadFromClasspath(props, patterns);
+	}
+
+	@Override
+	public int size() {
+		return props.countTotalProperties();
 	}
 
 	// ---------------------------------------------------------------- sql
@@ -69,10 +77,28 @@ public class DbPropsQueryMap implements QueryMap {
 	 * Returns query for given key.
 	 * In debug mode, props are reloaded every time before the lookup.
 	 */
-	public String getQuery(String key) {
-		if (DbManager.getInstance().isDebug()) {
-			load();
-		}
+	@Override
+	public String getQuery(final String key) {
 		return props.getValue(key);
+	}
+
+	private void loadFromClasspath(final Props props, final String... patterns) {
+		ClassScanner.create()
+				.registerEntryConsumer(entryData -> {
+					String usedEncoding = JoddCore.encoding;
+					if (StringUtil.endsWithIgnoreCase(entryData.name(), ".properties")) {
+						usedEncoding = StandardCharsets.ISO_8859_1.name();
+					}
+
+					final String encoding = usedEncoding;
+					UncheckedException.runAndWrapException(() -> props.load(entryData.openInputStream(), encoding));
+				})
+				.includeResources(true)
+				.ignoreException(true)
+				.excludeCommonJars()
+				.excludeAllEntries(true)
+				.includeEntries(patterns)
+				.scanDefaultClasspath()
+				.start();
 	}
 }

@@ -47,7 +47,7 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	/**
 	 * Table prefix, may be <code>null</code>.
 	 */
-	public void setPrefix(String prefix) {
+	public void setPrefix(final String prefix) {
 		this.prefix = prefix;
 	}
 
@@ -58,7 +58,7 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	/**
 	 * Table suffix, may be <code>null</code>.
 	 */
-	public void setSuffix(String suffix) {
+	public void setSuffix(final String suffix) {
 		this.suffix = suffix;
 	}
 
@@ -71,7 +71,7 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	 * When some type is proxified, new class name usually contains
 	 * some special character, like '$'.
 	 */
-	public void setEntityNameTerminator(char entityNameTerminator) {
+	public void setEntityNameTerminator(final char entityNameTerminator) {
 		this.entityNameTerminator = entityNameTerminator;
 	}
 
@@ -81,7 +81,7 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	 * Converts entity name to table name.
 	 * @see #convertEntityNameToTableName(String)
 	 */
-	public String convertEntityNameToTableName(Class type) {
+	public String convertEntityNameToTableName(final Class type) {
 		return convertEntityNameToTableName(type.getSimpleName());
 	}
 
@@ -89,19 +89,19 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	 * Converts entity (type) name to table name.
 	 */
 	public String convertEntityNameToTableName(String entityName) {
-		int ndx = entityName.indexOf(entityNameTerminator);
+		final int ndx = entityName.indexOf(entityNameTerminator);
 		if (ndx != -1) {
 			entityName = entityName.substring(0, ndx);
 		}
 
-		StringBuilder tableName = new StringBuilder(entityName.length() * 2);
+		final StringBuilder tableName = new StringBuilder(entityName.length() * 2);
 
 		if (prefix != null) {
 			tableName.append(prefix);
 		}
 
 		if (splitCamelCase) {
-			String convertedTableName = StringUtil.fromCamelCase(entityName, separatorChar);
+			final String convertedTableName = StringUtil.fromCamelCase(entityName, separatorChar);
 			tableName.append(convertedTableName);
 		} else {
 			tableName.append(entityName);
@@ -123,8 +123,8 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	/**
 	 * Converts table name to entity (type) name.
 	 */
-	public String convertTableNameToEntityName(String tableName) {
-		StringBuilder className = new StringBuilder(tableName.length());
+	public String convertTableNameToEntityName(final String tableName) {
+		final StringBuilder className = new StringBuilder(tableName.length());
 		int len = tableName.length();
 
 		int i = 0;
@@ -142,7 +142,7 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 		if (splitCamelCase) {
 			boolean toUpper = true;
 			for (; i < len; i++) {
-				char c = tableName.charAt(i);
+				final char c = tableName.charAt(i);
 				if (c == separatorChar) {
 					toUpper = true;
 					continue;
@@ -164,8 +164,8 @@ public class TableNamingStrategy extends BaseNamingStrategy {
 	 * Applies table naming strategy to given table name hint.
 	 * Returns full table name.
 	 */
-	public String applyToTableName(String tableName) {
-		String entityName = convertTableNameToEntityName(tableName);
+	public String applyToTableName(final String tableName) {
+		final String entityName = convertTableNameToEntityName(tableName);
 
 		return convertEntityNameToTableName(entityName);
 	}
