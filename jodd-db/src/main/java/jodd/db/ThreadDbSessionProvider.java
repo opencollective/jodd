@@ -25,8 +25,8 @@
 
 package jodd.db;
 
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Returns {@link DbSession} assigned to current thread.
@@ -48,7 +48,7 @@ public class ThreadDbSessionProvider implements DbSessionProvider {
 
 		if (session == null) {
 			throw new DbSqlException(
-					"No DbSession associated with current thread." +
+					"No DbSession associated with current thread. " +
 					"It seems that ThreadDbSessionHolder is not used.");
 		}
 		return session;

@@ -25,8 +25,8 @@
 
 package jodd.petite;
 
-import jodd.cache.TypeCache;
 import jodd.petite.meta.PetiteInject;
+import jodd.util.TypeCache;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,10 +44,10 @@ class OutsideObjectsTest {
 
 	@Test
 	void testWire() {
-		PetiteContainer pc = new PetiteContainer();
+		final PetiteContainer pc = new PetiteContainer();
 		pc.registerPetiteBean(InBean.class);
 
-		BeBean beBean = new BeBean();
+		final BeBean beBean = new BeBean();
 
 		assertNull(beBean.inBean);
 
@@ -62,7 +62,7 @@ class OutsideObjectsTest {
 
 	@Test
 	void testWire_withCache() {
-		PetiteContainer pc = new PetiteContainer();
+		final PetiteContainer pc = new PetiteContainer();
 		pc.setExternalsCache(TypeCache.createDefault());
 		pc.registerPetiteBean(InBean.class);
 

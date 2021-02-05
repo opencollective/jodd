@@ -25,24 +25,25 @@
 
 package jodd.htmlstapler;
 
-import jodd.crypt.DigestEngine;
 import jodd.io.FileNameUtil;
 import jodd.io.FileUtil;
 import jodd.io.NetUtil;
 import jodd.io.ZipUtil;
 import jodd.io.findfile.FindFile;
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
-import jodd.system.SystemUtil;
 import jodd.util.Base32;
 import jodd.util.CharUtil;
+import jodd.util.DigestEngine;
 import jodd.util.RandomString;
 import jodd.util.StringBand;
 import jodd.util.StringPool;
 import jodd.util.StringUtil;
+import jodd.util.SystemUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -67,7 +68,7 @@ public class HtmlStaplerBundlesManager {
 	protected final Strategy strategy;
 
 	// parameters
-	protected String localFilesEncoding = StringPool.UTF_8;
+	protected String localFilesEncoding = "UTF-8";
 	protected String bundleFolder;
 	protected String staplerPath = "jodd-bundle";
 	protected String localAddressAndPort = "http://localhost:8080";
@@ -287,7 +288,7 @@ public class HtmlStaplerBundlesManager {
 	 * is created, not the file content.
 	 */
 	protected File createBundleFile(final String bundleId) {
-		File folder = new File(bundleFolder, staplerPath);
+		final File folder = new File(bundleFolder, staplerPath);
 		if (!folder.exists()) {
 			folder.mkdirs();
 		}
@@ -299,7 +300,7 @@ public class HtmlStaplerBundlesManager {
 	 */
 	public File lookupBundleFile(String bundleId) {
 		if ((mirrors != null) && (!mirrors.isEmpty())) {
-			String realBundleId = mirrors.remove(bundleId);
+			final String realBundleId = mirrors.remove(bundleId);
 
 			if (realBundleId != null) {
 				bundleId = realBundleId;
@@ -313,8 +314,8 @@ public class HtmlStaplerBundlesManager {
 	 * does not exist, it will be created.
 	 */
 	public File lookupGzipBundleFile(final File file) throws IOException {
-		String path = file.getPath() + ZipUtil.GZIP_EXT;
-		File gzipFile = new File(path);
+		final String path = file.getPath() + ZipUtil.GZIP_EXT;
+		final File gzipFile = new File(path);
 
 		if (!gzipFile.exists()) {
 			if (log.isDebugEnabled()) {
@@ -362,7 +363,7 @@ public class HtmlStaplerBundlesManager {
 		}
 
 		// create unique digest from the collected sources
-		String[] sourcesArray = sources.toArray(new String[0]);
+		final String[] sourcesArray = sources.toArray(new String[0]);
 		for (int i = 0, sourcesArrayLength = sourcesArray.length; i < sourcesArrayLength; i++) {
 			sourcesArray[i] = sourcesArray[i].trim().toLowerCase();
 		}
@@ -370,11 +371,11 @@ public class HtmlStaplerBundlesManager {
 			Arrays.sort(sourcesArray);
 		}
 
-		StringBand sb = new StringBand(sourcesArray.length);
-		for (String src : sourcesArray) {
+		final StringBand sb = new StringBand(sourcesArray.length);
+		for (final String src : sourcesArray) {
 			sb.append(src);
 		}
-		String sourcesString = sb.toString();
+		final String sourcesString = sb.toString();
 
 		String bundleId = createDigest(sourcesString);
 		bundleId += '.' + bundleContentType;
@@ -386,7 +387,7 @@ public class HtmlStaplerBundlesManager {
 		}
 		try {
 			createBundle(contextPath, actionPath, bundleId, sources);
-		} catch (IOException ioex) {
+		} catch (final IOException ioex) {
 			throw new HtmlStaplerException("Can't create bundle", ioex);
 		}
 		return bundleId;
@@ -420,7 +421,7 @@ public class HtmlStaplerBundlesManager {
 			return;
 		}
 
-		StringBand sb = new StringBand(sources.size() * 2);
+		final StringBand sb = new StringBand(sources.size() * 2);
 		for (String src : sources) {
 			if (sb.length() != 0) {
 				sb.append(StringPool.NEWLINE);
@@ -446,14 +447,14 @@ public class HtmlStaplerBundlesManager {
 					}
 
 					// trim link parameters, if any
-					int qmndx = localFile.indexOf('?');
+					final int qmndx = localFile.indexOf('?');
 					if (qmndx != -1) {
 						localFile = localFile.substring(0, qmndx);
 					}
 
 					try {
 						content = FileUtil.readString(localFile);
-					} catch (IOException ioex) {
+					} catch (final IOException ioex) {
 						if (notFoundExceptionEnabled) {
 							throw ioex;
 						}
@@ -498,8 +499,8 @@ public class HtmlStaplerBundlesManager {
 	private String downloadString(final String localUrl) throws IOException {
 		String content;
 		try {
-			content = NetUtil.downloadString(localUrl, localFilesEncoding);
-		} catch (IOException ioex) {
+			content = NetUtil.downloadString(localUrl, Charset.forName(localFilesEncoding));
+		} catch (final IOException ioex) {
 			if (notFoundExceptionEnabled) {
 				throw ioex;
 			}

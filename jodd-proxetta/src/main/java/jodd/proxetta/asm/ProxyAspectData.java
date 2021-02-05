@@ -33,8 +33,7 @@ import jodd.asm7.ClassReader;
 import jodd.asm7.FieldVisitor;
 import jodd.asm7.Label;
 import jodd.asm7.MethodVisitor;
-import jodd.cache.TypeCache;
-import jodd.io.StreamUtil;
+import jodd.io.IOUtil;
 import jodd.proxetta.MethodInfo;
 import jodd.proxetta.ProxettaException;
 import jodd.proxetta.ProxettaNames;
@@ -42,6 +41,7 @@ import jodd.proxetta.ProxyAdvice;
 import jodd.proxetta.ProxyAspect;
 import jodd.proxetta.ProxyPointcut;
 import jodd.util.ClassLoaderUtil;
+import jodd.util.TypeCache;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -106,10 +106,10 @@ final class ProxyAspectData {
 		try {
 			inputStream = ClassLoaderUtil.getClassAsStream(advice);
 			return new ClassReader(inputStream);
-		} catch (IOException ioex) {
+		} catch (final IOException ioex) {
 			throw new ProxettaException(ioex);
 		} finally {
-			StreamUtil.close(inputStream);
+			IOUtil.close(inputStream);
 		}
 	}
 
@@ -120,12 +120,7 @@ final class ProxyAspectData {
 		if (adviceClassReaderCache == null) {
 			adviceClassReaderCache = TypeCache.createDefault();
 		}
-		ClassReader adviceReader = adviceClassReaderCache.get(advice);
-		if (adviceReader == null) {
-			adviceReader = createAdviceClassReader(advice);
-			adviceClassReaderCache.put(advice, adviceReader);
-		}
-		return adviceReader;
+		return adviceClassReaderCache.get(advice, this::createAdviceClassReader);
 	}
 
 	/**

@@ -25,18 +25,19 @@
 
 package jodd.cache;
 
+import jodd.buffer.FastCharBuffer;
 import jodd.io.FastByteArrayOutputStream;
 import jodd.io.FastCharArrayWriter;
 import jodd.io.FileNameUtil;
+import jodd.io.IOUtil;
 import jodd.io.NetUtil;
 import jodd.io.PathUtil;
-import jodd.io.StreamUtil;
 import jodd.io.ZipUtil;
 import jodd.mutable.MutableBoolean;
 import jodd.mutable.MutableByte;
 import jodd.mutable.MutableInteger;
 import jodd.mutable.MutableLong;
-import jodd.buffer.FastCharBuffer;
+import jodd.util.TypeCache;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -73,7 +74,7 @@ public class TypeCacheBenchmark {
 		ProcessBuilder.class, NullPointerException.class, Void.class, VerifyError.class,
 		Throwable.class, Thread.class, System.class, AbstractCacheMap.class, Cache.class, FIFOCache.class,
 		FileCache.class, NoCache.class, FastByteArrayOutputStream.class, FastCharArrayWriter.class,
-		FileNameUtil.class, NetUtil.class, PathUtil.class, StreamUtil.class, ZipUtil.class,
+		FileNameUtil.class, NetUtil.class, PathUtil.class, IOUtil.class, ZipUtil.class,
 		MutableInteger.class, MutableLong.class, MutableBoolean.class, MutableByte.class
 	};
 
@@ -82,14 +83,14 @@ public class TypeCacheBenchmark {
 	}
 
 	private static final int TOTAL_READS = 1024;
-	private TypeCache<String> map = TypeCache.<String>create().get();
-	private TypeCache<String> syncMap = TypeCache.<String>create().threadsafe(true).get();
-	private TypeCache<String> weakMap = TypeCache.<String>create().weak(true).get();
-	private TypeCache<String> weakSyncMap = TypeCache.<String>create().weak(true).threadsafe(true).get();
-	private Map<Class, String> smoothieMap = new net.openhft.smoothie.SmoothieMap<>();
-	private Map<Class, String> simpleHashMap = new HashMap<>();
-	private Cache<Class, String> timedCache = new TimedCache<>(0);
-	private int[] indexes = new int[TOTAL_READS];
+	private final TypeCache<String> map = TypeCache.<String>create().get();
+	private final TypeCache<String> syncMap = TypeCache.<String>create().threadsafe(true).get();
+	private final TypeCache<String> weakMap = TypeCache.<String>create().weak(true).get();
+	private final TypeCache<String> weakSyncMap = TypeCache.<String>create().weak(true).threadsafe(true).get();
+	private final Map<Class, String> smoothieMap = new net.openhft.smoothie.SmoothieMap<>();
+	private final Map<Class, String> simpleHashMap = new HashMap<>();
+	private final Cache<Class, String> timedCache = new TimedCache<>(0);
+	private final int[] indexes = new int[TOTAL_READS];
 
 	@Setup
 	public void prepare() {

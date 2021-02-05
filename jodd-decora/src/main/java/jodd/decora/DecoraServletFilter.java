@@ -26,14 +26,14 @@
 package jodd.decora;
 
 import jodd.decora.parser.DecoraParser;
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
 import jodd.servlet.DispatcherUtil;
 import jodd.servlet.wrapper.BufferResponseWrapper;
 import jodd.servlet.wrapper.LastModifiedData;
 import jodd.typeconverter.Converter;
 import jodd.util.ClassLoaderUtil;
 import jodd.util.ClassUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -93,7 +93,7 @@ public class DecoraServletFilter implements Filter {
 			try {
 				final Class decoraManagerType = ClassLoaderUtil.loadClass(decoraManagerClass);
 				decoraManager = (DecoraManager) ClassUtil.newInstance(decoraManagerType);
-			} catch (Exception ex) {
+			} catch (final Exception ex) {
 				log.error("Unable to load Decora manager class: " + decoraManagerClass, ex);
 				throw new ServletException(ex);
 			}
@@ -109,7 +109,7 @@ public class DecoraServletFilter implements Filter {
 			try {
 				final Class decoraParserType = ClassLoaderUtil.loadClass(decoraParserClass);
 				decoraParser = (DecoraParser) ClassUtil.newInstance(decoraParserType);
-			} catch (Exception ex) {
+			} catch (final Exception ex) {
 				log.error("Unable to load Decora parser class: " + decoraParserClass, ex);
 				throw new ServletException(ex);
 			}
@@ -204,10 +204,10 @@ public class DecoraServletFilter implements Filter {
 			writer.flush();
 
 			decorated = true;
-			log.debug(() -> "Decora applied on " + actionPath);
+			log.debug("Decora applied on " + actionPath);
 		}
 		else {
-			log.debug(() -> "Decora not applied on " + actionPath);
+			log.debug("Decora not applied on " + actionPath);
 		}
 
 //		if (response.isCommitted() == false) {

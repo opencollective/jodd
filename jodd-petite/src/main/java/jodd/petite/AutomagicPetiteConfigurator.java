@@ -26,10 +26,10 @@
 package jodd.petite;
 
 import jodd.io.findfile.ClassScanner;
-import jodd.log.Logger;
-import jodd.log.LoggerFactory;
 import jodd.petite.meta.PetiteBean;
-import jodd.util.function.Consumers;
+import jodd.util.Consumers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
 
@@ -72,7 +72,7 @@ public class AutomagicPetiteConfigurator {
 
 		try {
 			classScanner.start();
-		} catch (Exception ex) {
+		} catch (final Exception ex) {
 			throw new PetiteException("Scan classpath error", ex);
 		}
 		elapsed = System.currentTimeMillis() - elapsed;
@@ -94,7 +94,7 @@ public class AutomagicPetiteConfigurator {
 
 			try {
 				beanClass = classPathEntry.loadClass();
-			} catch (ClassNotFoundException cnfex) {
+			} catch (final ClassNotFoundException cnfex) {
 				throw new PetiteException("Unable to load class: " + cnfex, cnfex);
 			}
 
